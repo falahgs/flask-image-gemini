@@ -1,15 +1,24 @@
-# Flask Image Analysis with Gemini AI
+# Screen Capture and Image Data Extraction Web App
 
-A Flask application that uses Google's Gemini AI to analyze images and extract structured data.
+This web application allows users to upload images or share their screen for data extraction. The app uses **Google Gemini AI** to analyze images and extract structured data, such as personal information, document details, and other relevant fields. The extracted data can then be downloaded in either **JSON** or **Excel** format.
 
 ## Features
-- Image analysis using Google Gemini AI
-- Structured data extraction
-- Export to JSON and Excel formats
-- Multiple Gemini model support
+- **Screen Capture**: Users can capture screenshots (via the browser) for analysis.
+- **Image Upload**: Users can upload images (such as documents, receipts, etc.) for data extraction.
+- **Data Extraction**: The app uses **Google Gemini AI** to extract structured data from the images.
+- **Downloadable Results**: Extracted data can be downloaded in **JSON** or **Excel** format.
 
-## Setup
-1. Clone the repository
-2. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
+## Prerequisites
+
+Before running the app, ensure that you have the following installed:
+- Python 3.x
+- Flask
+- Google Gemini API Key (for AI-based extraction)
+- Required Python libraries: `Flask`, `google-generativeai`, `Pillow`, `pandas`, `openpyxl`, `pydantic`
+
+### Install Required Libraries
+
+Use pip to install the necessary dependencies:
+
+```bash
+pip install Flask google-generativeai pydantic Pillow pandas openpyxl
