@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Screen Capture & Analysis</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .video-container, .preview-container {
+            margin: 20px 0;
+            max-width: 100%;
+            overflow: hidden;
+        }
+        video, #preview-image {
+            width: 100%;
+            max-width: 800px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .preview-container {
+            display: none;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 0;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        #result {
+            margin-top: 20px;
+            white-space: pre-wrap;
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        .controls {
+            margin: 20px 0;
+        }
+        #canvas {
+            display: none;
+        }
+        .loading {
+            display: none;
+            margin: 20px 0;
+        }
+        .preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .preview-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        .btn-retake {
+            background-color: #dc3545;
+        }
+        .btn-retake:hover {
+            background-color: #c82333;
+        }
+        .btn-download {
+            background-color: #28a745;
+        }
+        .btn-download:hover {
+            background-color: #218838;
+        }
+        .btn-json {
+            background-color: #6610f2;
+        }
+        .btn-json:hover {
+            background-color: #520dc2;
+        }
+        .btn-excel {
+            background-color: #217346;
+        }
+        .btn-excel:hover {
+            background-color: #1a5c38;
+        }
+        .timestamp {
+            color: #6c757d;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+        .result-controls {
+            display: none;
+            margin-top: 10px;
+            gap: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Screen Capture & Analysis</h1>
+        
+        <div class="controls">
+            <button id="startButton">Start Screen Share</button>
+            <button id="captureButton" disabled>Capture Screen</button>
+        </div>
+
+        <div class="video-container">
+            <video id="video" autoplay></video>
+        </div>
+
+        <div class="preview-container" id="previewContainer">
+            <div class="preview-header">
+                <div>
+                    <h2>Preview Captured Screen</h2>
+                    <div class="timestamp" id="captureTimestamp"></div>
+                </div>
+                <div class="preview-buttons">
+                    <button class="btn-download" id="downloadButton">Download Screenshot</button>
+                    <button class="btn-retake" id="retakeButton">Retake Capture</button>
+                    <button id="analyzeButton">Analyze with Gemini</button>
+                </div>
+            </div>
+            <img id="preview-image" alt="Captured screen preview">
+        </div>
+
+        <canvas id="canvas"></canvas>
+        
+        <div class="loading" id="loading">
+            Analyzing image... Please wait...
+        </div>
+
+        <div id="result"></div>
+        <div class="result-controls" id="resultControls">
+            <button class="btn-json" id="downloadJsonButton">Download JSON</button>
+            <button class="btn-excel" id="downloadExcelButton">Download Excel</button>
+        </div>
+    </div>
+
+    <script>
+        let stream;
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const startButton = document.getElementById('startButton');
+        const captureButton = document.getElementById('captureButton');
+        const analyzeButton = document.getElementById('analyzeButton');
+        const retakeButton = document.getElementById('retakeButton');
+        const downloadButton = document.getElementById('downloadButton');
+        const downloadJsonButton = document.getElementById('downloadJsonButton');
+        const downloadExcelButton = document.getElementById('downloadExcelButton');
+        const resultDiv = document.getElementById('result');
+        const loadingDiv = document.getElementById('loading');
+        const resultControls = document.getElementById('resultControls');
+        const previewContainer = document.getElementById('previewContainer');
+        const previewImage = document.getElementById('preview-image');
+        const videoContainer = document.querySelector('.video-container');
+        const captureTimestamp = document.getElementById('captureTimestamp');
+        let capturedImage = null;
+        let analysisResult = null;
+
+        function formatDate(date) {
+            const pad = (n) => n < 10 ? '0' + n : n;
+            return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}_${pad(date.getHours())}-${pad(date.getMinutes())}-${pad(date.getSeconds())}`;
+        }
+
+        startButton.addEventListener('click', async () => {
+            try {
+                stream = await navigator.mediaDevices.getDisplayMedia({
+                    video: { cursor: "always" },
+                    audio: false
+                });
+                video.srcObject = stream;
+                captureButton.disabled = false;
+                startButton.disabled = true;
+                videoContainer.style.display = 'block';
+                previewContainer.style.display = 'none';
+                resultDiv.textContent = '';
+                resultControls.style.display = 'none';
+            } catch (err) {
+                console.error("Error: " + err);
+            }
+        });
+
+        captureButton.addEventListener('click', () => {
+            const captureTime = new Date();
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            capturedImage = canvas.toDataURL('image/png');
+            
+            // Show preview
+            previewImage.src = capturedImage;
+            videoContainer.style.display = 'none';
+            previewContainer.style.display = 'block';
+            
+            // Update timestamp
+            captureTimestamp.textContent = `Captured on: ${captureTime.toLocaleString()}`;
+            
+            // Stop the screen share
+            stream.getTracks().forEach(track => track.stop());
+            video.srcObject = null;
+            startButton.disabled = false;
+            captureButton.disabled = true;
+        });
+
+        downloadButton.addEventListener('click', () => {
+            const link = document.createElement('a');
+            link.download = `screenshot_${formatDate(new Date())}.png`;
+            link.href = capturedImage;
+            link.click();
+        });
+
+        retakeButton.addEventListener('click', () => {
+            startButton.click();
+        });
+
+        async function downloadFile(url, data) {
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ data: data })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Download failed');
+                }
+
+                const blob = await response.blob();
+                const downloadUrl = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = downloadUrl;
+                link.download = ''; // The server will set the filename
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(downloadUrl);
+            } catch (error) {
+                console.error('Download error:', error);
+                alert('Download failed: ' + error.message);
+            }
+        }
+
+        downloadJsonButton.addEventListener('click', () => {
+            if (!analysisResult) return;
+            try {
+                // Try to parse as JSON first
+                const jsonData = JSON.parse(analysisResult);
+                downloadFile('/download-json', jsonData);
+            } catch (e) {
+                // If parsing fails, send as is
+                downloadFile('/download-json', analysisResult);
+            }
+        });
+
+        downloadExcelButton.addEventListener('click', () => {
+            if (!analysisResult) return;
+            try {
+                // Try to parse as JSON first
+                const jsonData = JSON.parse(analysisResult);
+                downloadFile('/download-excel', jsonData);
+            } catch (e) {
+                // If parsing fails, send as is
+                downloadFile('/download-excel', analysisResult);
+            }
+        });
+
+        analyzeButton.addEventListener('click', async () => {
+            if (!capturedImage) return;
+            
+            loadingDiv.style.display = 'block';
+            resultDiv.textContent = '';
+            analyzeButton.disabled = true;
+            resultControls.style.display = 'none';
+
+            try {
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        image: capturedImage
+                    })
+                });
+
+                const data = await response.json();
+                if (data.error) {
+                    resultDiv.textContent = 'Error: ' + data.error;
+                    resultControls.style.display = 'none';
+                } else {
+                    resultDiv.textContent = data.result;
+                    analysisResult = data.result;
+                    resultControls.style.display = 'flex';
+                }
+            } catch (error) {
+                resultDiv.textContent = 'Error: ' + error.message;
+                resultControls.style.display = 'none';
+            } finally {
+                loadingDiv.style.display = 'none';
+                analyzeButton.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
