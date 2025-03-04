@@ -1,4 +1,4 @@
-# Screen Capture and Image Data Extraction Web App
+# Efficient Structured Data Extraction from Shared Screens and Images Using Flask and Google Gemini AI
 
 This web application allows users to upload images or share their screen for data extraction. The app uses **Google Gemini AI** to analyze images and extract structured data, such as personal information, document details, and other relevant fields. The extracted data can then be downloaded in either **JSON** or **Excel** format.
 
